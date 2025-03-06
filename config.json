@@ -1,0 +1,5 @@
+{
+    "folder_ids": ["YOUR_FOLDER_ID"],
+    "allowedExtensions": [".mp4", ".mkv"],
+    "loop_interval": 90
+}
