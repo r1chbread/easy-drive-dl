@@ -10,22 +10,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.errors import HttpError
 
-# Paths to config files
-SERVICE_ACCOUNT_FILE: str = "./service-account.json"
-CONFIG_FILE: str = "./config.json"
-
-# Load config JSON
-with open(CONFIG_FILE, encoding="utf-8") as f:
-    config: dict = json.load(f)
-
-FOLDER_IDS: list[str] = config["folder_ids"]
-ALLOWED_EXTENSIONS: list[str] = config["allowedExtensions"]
-LOOP_INTERVAL: int = config.get("loop_interval", 60)  # Default to 60 seconds if not set
-
-# Download directory
-DOWNLOAD_PATH: str = "./downloads"
-os.makedirs(DOWNLOAD_PATH, exist_ok=True)
-
 # Set up logging
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -35,6 +19,33 @@ logging.basicConfig(
         logging.StreamHandler()  # Log to console
     ],
 )
+
+def exception_handler(exc_type, exc_value, exc_traceback):
+    logging.error(exc_value)
+    input("Press Enter to exit.")
+    sys.exit(1)
+
+sys.excepthook = exception_handler
+
+# Paths to config files
+SERVICE_ACCOUNT_FILE: str = "./service-account.json"
+CONFIG_FILE: str = "./config.json"
+
+for fp in [SERVICE_ACCOUNT_FILE, CONFIG_FILE]:
+    if not os.path.exists(fp):
+        raise FileNotFoundError(f"File not found: {fp}")
+
+# Load config JSON
+with open(CONFIG_FILE, encoding="utf-8") as f:
+    config: dict = json.load(f)
+
+FOLDER_IDS: list[str] = config["folder_ids"]
+ALLOWED_EXTENSIONS: list[str] = config["allowed_extensions"]
+LOOP_INTERVAL: int = config.get("loop_interval", 60)  # Default to 60 seconds if not set
+
+# Download directory
+DOWNLOAD_PATH: str = "./downloads"
+os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
 # Authenticate with service account credentials
 def authenticate() -> object:
@@ -53,16 +64,12 @@ def is_valid_folder(service, folder_id: str) -> bool:
         else:
             return False
     except HttpError as error:
-        logging.error(f"Invalid folder ID: {folder_id}.")
-        logging.error(f"{error}")
         return False
 
 # Get list of files in a Google Drive folder
 def list_files(service, folder_id: str):
     if not is_valid_folder(service, folder_id):
-        logging.error(f"Invalid folder ID: {folder_id}.")
-        logging.error("Terminating program.")
-        sys.exit(1)  # Exit program if the folder is invalid
+        raise RuntimeError(f"Invalid folder ID: {folder_id}.")
 
     query = f"'{folder_id}' in parents and trashed=false"
     try:
